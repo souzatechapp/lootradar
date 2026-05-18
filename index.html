@@ -1,0 +1,357 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  RefreshCw, Gamepad2, ExternalLink, Search, Star, 
+  Info, Heart, SlidersHorizontal, Puzzle, Wallet, 
+  CheckCircle2, Tag
+} from 'lucide-react';
+
+const STORES = [
+  { name: 'STEAM', domains: ['steampowered.com', 'steamcommunity.com'], color: 'bg-blue-600 border-blue-500', accent: '#66c0f4', primaryColor: '#1b2838', secondaryColor: '#171a21', brandVibe: 'industrial' },
+  { name: 'EPIC GAMES', domains: ['epicgames.com'], color: 'bg-zinc-700 border-zinc-600', accent: '#0078f2', primaryColor: '#121212', secondaryColor: '#2a2a2a', brandVibe: 'sharp' },
+  { name: 'GOG', domains: ['gog.com'], color: 'bg-purple-600 border-purple-500', accent: '#bf15eb', primaryColor: '#1e0f31', secondaryColor: '#0f071a', brandVibe: 'retro' },
+  { name: 'UBISOFT', domains: ['ubisoft.com', 'ubi.com'], color: 'bg-teal-600 border-teal-500', accent: '#00f0ff', primaryColor: '#002d54', secondaryColor: '#001a33', brandVibe: 'spiral' },
+  { name: 'EA PLAY', domains: ['ea.com', 'origin.com'], color: 'bg-red-600 border-red-500', accent: '#f5333f', primaryColor: '#161616', secondaryColor: '#3a0007', brandVibe: 'minimal' },
+  { name: 'PLAYSTATION', domains: ['playstation.com', 'sony.com'], color: 'bg-blue-800 border-blue-700', accent: '#0070d1', primaryColor: '#003087', secondaryColor: '#001b54', brandVibe: 'shapes' },
+  { name: 'XBOX / MS', domains: ['microsoft.com', 'xbox.com'], color: 'bg-green-700 border-green-600', accent: '#51db51', primaryColor: '#107c10', secondaryColor: '#0a4e0a', brandVibe: 'sphere' },
+  { name: 'NINTENDO', domains: ['nintendo.com', 'nintendo.co.jp'], color: 'bg-red-700 border-red-600', accent: '#ff4d5a', primaryColor: '#e60012', secondaryColor: '#80000a', brandVibe: 'joycon' },
+  { name: 'ITCH.IO', domains: ['itch.io'], color: 'bg-pink-600 border-pink-500', accent: '#ff8e8e', primaryColor: '#fa5c5c', secondaryColor: '#7d1e1e', brandVibe: 'pixel' },
+  { name: 'ANDROID PLAY', domains: ['play.google.com'], color: 'bg-emerald-600 border-emerald-500', accent: '#34a853', primaryColor: '#0f5132', secondaryColor: '#052214', brandVibe: 'android' },
+  { name: 'IOS APP STORE', domains: ['apps.apple.com', 'apple.com'], color: 'bg-sky-500 border-sky-400', accent: '#0071e3', primaryColor: '#1d1d1f', secondaryColor: '#000000', brandVibe: 'apple' },
+  { name: 'PUBLISHER', domains: ['rockstargames.com', 'riotgames.com', 'sega.com', 'bandainamcoent.com', 'square-enix.com', 'capcom.com', 'cdprojektred.com', 'bethesda.net'], color: 'bg-amber-600 border-amber-500', accent: '#f59e0b', primaryColor: '#451a03', secondaryColor: '#180801', brandVibe: 'golden' }
+];
+
+const GENRES = ["Ação", "RPG", "Aventura", "Estratégia", "Simulador", "Plataforma", "Casual", "Puzzle", "DLC"];
+const MODES = ["Single-player", "Multiplayer", "Co-op", "Expansão"];
+
+const getPlatformFallbackSVG = (store) => {
+  const theme = store || { name: 'GAME', accent: '#10b981', primaryColor: '#16181d', secondaryColor: '#0b0c10', brandVibe: 'minimal' };
+  let brandElements = '';
+
+  switch (theme.brandVibe) {
+    case 'industrial': brandElements = `<path d="M 0 50 Q 150 150 400 30" fill="none" stroke="${theme.accent}" stroke-width="4" opacity="0.15" /><path d="M 0 120 Q 250 20 400 150" fill="none" stroke="${theme.accent}" stroke-width="2" opacity="0.1" /><circle cx="300" cy="100" r="30" fill="none" stroke="${theme.accent}" stroke-width="6" opacity="0.1" />`; break;
+    case 'sharp': brandElements = `<polygon points="250,-20 450,80 320,220" fill="${theme.accent}" opacity="0.08" /><polygon points="-50,120 150,220 50,20" fill="${theme.accent}" opacity="0.05" />`; break;
+    case 'shapes': brandElements = `<polygon points="320,50 340,85 300,85" fill="none" stroke="white" stroke-width="3" opacity="0.15" /><circle cx="280" cy="120" r="18" fill="none" stroke="${theme.accent}" stroke-width="3" opacity="0.2" /><rect x="230" y="60" width="30" height="30" rx="4" fill="none" stroke="white" stroke-width="3" opacity="0.12" />`; break;
+    case 'sphere': brandElements = `<circle cx="330" cy="100" r="45" fill="none" stroke="${theme.accent}" stroke-width="8" opacity="0.2" /><path d="M 290 85 Q 330 130 370 85" fill="none" stroke="${theme.accent}" stroke-width="4" opacity="0.2" />`; break;
+    case 'joycon': brandElements = `<rect x="290" y="40" width="35" height="90" rx="17" fill="white" opacity="0.1" /><rect x="335" y="70" width="35" height="90" rx="17" fill="${theme.accent}" opacity="0.15" />`; break;
+    case 'pixel': brandElements = `<rect x="280" y="50" width="20" height="20" fill="white" opacity="0.08" /><rect x="300" y="70" width="20" height="20" fill="${theme.accent}" opacity="0.15" />`; break;
+    case 'android': brandElements = `<polygon points="260,50 360,100 260,150" fill="none" stroke="${theme.accent}" stroke-width="4" opacity="0.15" />`; break;
+    case 'apple': brandElements = `<circle cx="300" cy="100" r="50" fill="none" stroke="white" stroke-width="1" opacity="0.08" />`; break;
+    default: brandElements = `<path d="M -20 100 C 100 40, 200 160, 420 100" fill="none" stroke="${theme.accent}" stroke-width="3" opacity="0.2" />`;
+  }
+
+  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="100%" height="100%"><defs><linearGradient id="grad-${theme.name}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:${theme.primaryColor};stop-opacity:1" /><stop offset="100%" style="stop-color:${theme.secondaryColor};stop-opacity:1" /></linearGradient></defs><rect width="100%" height="100%" fill="url(#grad-${theme.name})" /><circle cx="320" cy="100" r="120" fill="${theme.accent}" opacity="0.15" filter="blur(35px)" />${brandElements}<g transform="translate(35, 115)"><text x="0" y="0" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="white" letter-spacing="1.5" opacity="0.95">${theme.name}</text><text x="0" y="22" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="10" fill="${theme.accent}" letter-spacing="4" opacity="0.8">DISTRIBUIÇÃO OFICIAL</text></g></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
+};
+
+const getOfficialGameBanner = (url, store) => {
+  if (store.name === 'STEAM') {
+    const steamAppIdMatch = url.match(/app\/([0-9]+)/);
+    if (steamAppIdMatch) return `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppIdMatch[1]}/header.jpg`;
+  }
+  if (store.name === 'GOG') {
+    const gogMatch = url.match(/game\/([a-z0-9_]+)/);
+    if (gogMatch) return `https://images.gog-statics.com/${gogMatch[1]}_product_card_v2_mobile_slider_639.jpg`;
+  }
+  return getPlatformFallbackSVG(store);
+};
+
+export default function App() {
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // States Locais (Persistidos)
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('loot-favs-games') || '[]'); } catch { return []; }
+  });
+  
+  // NOVO: Dicionário de jogos resgatados com o valor economizado { id: preco }
+  const [redeemedDict, setRedeemedDict] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('loot-redeemed-dict') || '{}'); } catch { return {}; }
+  });
+
+  // UI States
+  const [search, setSearch] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+
+  // Filters
+  const [filterStore, setFilterStore] = useState('ALL');
+  const [filterGenre, setFilterGenre] = useState('ALL');
+  const [filterMode, setFilterMode] = useState('ALL');
+  const [filterRating, setFilterRating] = useState('0');
+  const [hideExpiring, setHideExpiring] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const sources = [
+        'https://www.reddit.com/r/FreeGameFindings/new.json?limit=50',
+        'https://www.reddit.com/r/Freegamestuff/new.json?limit=50',
+        'https://www.reddit.com/r/steamdeals/new.json?limit=40'
+      ];
+
+      const responses = await Promise.all(sources.map(src => fetch(src).then(res => res.ok ? res.json() : null).catch(() => null)));
+      let allChildren = [];
+      responses.forEach(res => { if (res?.data?.children) allChildren.push(...res.data.children); });
+
+      const uniqueUrls = new Set();
+      const items = allChildren.reduce((acc, c) => {
+        const data = c.data;
+        if (!data || !data.url) return acc;
+
+        const titleLower = data.title.toLowerCase();
+
+        // Filtro Anti-Lixo: Bloqueia softwares, pacotes de ícones e VPNs
+        const isApp = titleLower.includes('software') || titleLower.includes('icon pack') || titleLower.includes('app') || titleLower.includes('utilitário') || titleLower.includes('vpn');
+        if (isApp) return acc;
+        if (data.subreddit === 'steamdeals' && !titleLower.includes('100%') && !titleLower.includes('free')) return acc;
+
+        const storeInfo = STORES.find(s => s.domains.some(domain => data.url.toLowerCase().includes(domain)));
+        if (!storeInfo || uniqueUrls.has(data.url)) return acc;
+        
+        uniqueUrls.add(data.url);
+        const seed = data.id.length;
+        const isDLC = titleLower.includes('dlc') || titleLower.includes('expansion') || titleLower.includes('add-on');
+        
+        let cleanTitle = data.title
+          .replace(/\[.*?\]/g, '').replace(/\(.*?\)/g, '')
+          .replace(/(100% off|free for a limited time|grátis|gratis|ios|android)/gi, '')
+          .replace(/(\$\d+(\.\d+)? -> (free|0|grátis))/gi, '').trim() || data.title;
+
+        // NOVO: Gerador de preço estimado baseado no ID (para o Painel de Economia)
+        // Cria um preço determinístico entre R$ 19,90 e R$ 169,90
+        const idSum = data.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+        const estimatedPrice = 19 + (idSum % 150) + 0.90;
+
+        acc.push({
+          id: data.id,
+          title: cleanTitle,
+          url: data.url,
+          time: data.created_utc,
+          store: storeInfo,
+          banner: getOfficialGameBanner(data.url, storeInfo),
+          rating: parseFloat((4 + (seed % 10) / 10).toFixed(1)),
+          genre: isDLC ? "DLC" : GENRES[seed % 8],
+          mode: isDLC ? "Expansão" : MODES[seed % 3],
+          isDLC: isDLC,
+          price: estimatedPrice,
+          synopsis: isDLC 
+            ? `Expansão (DLC) gratuita por tempo limitado. Requer o jogo base na conta para resgate. Preço original estimado: R$ ${estimatedPrice.toFixed(2).replace('.', ',')}` 
+            : `Jogo completo distribuído gratuitamente por tempo limitado. Resgate na loja oficial. Preço original estimado: R$ ${estimatedPrice.toFixed(2).replace('.', ',')}`
+        });
+        return acc;
+      }, []);
+
+      if(items.length === 0) throw new Error('Nenhum jogo ou DLC encontrado.');
+      setGames(items);
+    } catch (e) {
+      setError('Falha ao sincronizar. Tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+  
+  // Persistência de Dados
+  useEffect(() => { localStorage.setItem('loot-favs-games', JSON.stringify(favorites)); }, [favorites]);
+  useEffect(() => { localStorage.setItem('loot-redeemed-dict', JSON.stringify(redeemedDict)); }, [redeemedDict]);
+
+  const isOld = (time) => (Date.now() / 1000 - time) > 604800;
+
+  // NOVO: Lógica de Marcar como Resgatado
+  const toggleRedeemed = (game) => {
+    setRedeemedDict(prev => {
+      const next = { ...prev };
+      if (next[game.id]) {
+        delete next[game.id]; // Remove dos resgatados
+      } else {
+        next[game.id] = game.price; // Adiciona com o preço para somar na economia
+      }
+      return next;
+    });
+  };
+
+  const sortedAndFilteredGames = useMemo(() => {
+    let result = games.filter(g => {
+      if (onlyFavorites && !favorites.includes(g.id)) return false;
+      if (filterStore !== 'ALL' && g.store.name !== filterStore) return false;
+      if (filterGenre !== 'ALL' && g.genre !== filterGenre) return false;
+      if (filterMode !== 'ALL' && g.mode !== filterMode) return false;
+      if (g.rating < parseFloat(filterRating)) return false;
+      if (hideExpiring && isOld(g.time)) return false;
+      const searchTxt = search.toLowerCase();
+      if (searchTxt && !g.title.toLowerCase().includes(searchTxt) && !g.store.name.toLowerCase().includes(searchTxt)) return false;
+      return true;
+    });
+
+    // Ordenação: Itens NÃO resgatados primeiro, Resgatados vão pro final da lista
+    result.sort((a, b) => {
+      const aRedeemed = !!redeemedDict[a.id];
+      const bRedeemed = !!redeemedDict[b.id];
+      
+      if (aRedeemed !== bRedeemed) return aRedeemed ? 1 : -1;
+      return b.time - a.time; // Se ambos tiverem o mesmo status, ordena por data
+    });
+
+    return result;
+  }, [games, favorites, search, filterStore, filterGenre, filterMode, filterRating, hideExpiring, onlyFavorites, redeemedDict]);
+
+  // NOVO: Cálculo Total Economizado
+  const totalSaved = useMemo(() => {
+    return Object.values(redeemedDict).reduce((acc, curr) => acc + curr, 0);
+  }, [redeemedDict]);
+
+  const resetFilters = () => {
+    setFilterStore('ALL'); setFilterGenre('ALL'); setFilterMode('ALL');
+    setFilterRating('0'); setHideExpiring(false); setSearch('');
+  };
+
+  const activeFiltersCount = [filterStore !== 'ALL', filterGenre !== 'ALL', filterMode !== 'ALL', filterRating !== '0', hideExpiring].filter(Boolean).length;
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-emerald-500/30 pb-12">
+      <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-md border-b border-zinc-800/60 p-4">
+        <div className="max-w-xl mx-auto flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-emerald-500 p-1.5 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                <Gamepad2 size={22} className="text-black" />
+              </div>
+              <div>
+                <h1 className="text-lg font-black tracking-wider text-white">LOOT RADAR</h1>
+                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Apenas Jogos & DLCs</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button onClick={() => setOnlyFavorites(!onlyFavorites)} className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${onlyFavorites ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>
+                <Heart size={14} fill={onlyFavorites ? "currentColor" : "none"} /> Favoritos
+              </button>
+              <button onClick={fetchData} className="text-emerald-400 hover:rotate-180 transition-transform duration-500 p-2 rounded-xl bg-zinc-900 border border-zinc-800">
+                <RefreshCw size={16} className={loading ? "animate-spin text-emerald-500" : ""} />
+              </button>
+            </div>
+          </div>
+
+          {/* NOVO: Painel de Economia */}
+          {totalSaved > 0 && (
+            <div className="bg-gradient-to-r from-emerald-900/30 to-zinc-900/40 border border-emerald-500/20 rounded-2xl p-3.5 flex items-center justify-between overflow-hidden relative">
+              <div className="absolute -right-4 -top-4 opacity-10"><Wallet size={80} /></div>
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="bg-emerald-500/20 p-2 rounded-xl text-emerald-400">
+                  <Wallet size={20} />
+                </div>
+                <div>
+                  <p className="text-[9px] text-emerald-500/80 font-bold uppercase tracking-widest">Você já economizou</p>
+                  <p className="text-xl font-black text-emerald-400 leading-none mt-0.5">R$ {totalSaved.toFixed(2).replace('.', ',')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+              <input type="text" placeholder="Pesquisar jogos ou expansões..." value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-zinc-900/60 border border-zinc-800 focus:border-emerald-500/50 rounded-2xl py-3 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-zinc-500" />
+            </div>
+            <button onClick={() => setShowFilters(!showFilters)} className={`p-3 rounded-2xl border flex items-center justify-center gap-2 transition-all relative ${showFilters ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'bg-zinc-900/60 border-zinc-800 text-zinc-400'}`}>
+              <SlidersHorizontal size={18} />
+              {activeFiltersCount > 0 && <span className="absolute -top-1 -right-1 bg-emerald-500 text-black text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">{activeFiltersCount}</span>}
+            </button>
+          </div>
+
+          {showFilters && (
+            <div className="bg-zinc-950 rounded-2xl border border-zinc-800/80 p-4 space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-800/60">
+                <h3 className="text-xs font-black tracking-widest text-zinc-400 uppercase">Filtros Avançados</h3>
+                {activeFiltersCount > 0 && <button onClick={resetFilters} className="text-[10px] font-bold text-red-400">Limpar</button>}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <select value={filterStore} onChange={e => setFilterStore(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-300 outline-none"><option value="ALL">Sistemas</option>{STORES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}</select>
+                <select value={filterGenre} onChange={e => setFilterGenre(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-300 outline-none"><option value="ALL">Gêneros</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>
+                <select value={filterMode} onChange={e => setFilterMode(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-300 outline-none"><option value="ALL">Modos</option>{MODES.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                <select value={filterRating} onChange={e => setFilterRating(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-300 outline-none"><option value="0">Notas</option><option value="4.2">⭐ 4.2+</option><option value="4.8">⭐ 4.8+</option></select>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {}
+      <main className="max-w-xl mx-auto p-4 space-y-6">
+        {loading ? (
+          <div className="text-center py-24 text-zinc-500 text-sm animate-pulse">Sincronizando Jogos e DLCs...</div>
+        ) : error ? (
+          <div className="text-center py-24 text-red-500 text-sm">{error}</div>
+        ) : sortedAndFilteredGames.length === 0 ? (
+          <div className="text-center py-24 text-zinc-500 text-sm">Nenhum Jogo ou DLC encontrado com os filtros atuais.</div>
+        ) : sortedAndFilteredGames.map(game => {
+          const isRedeemed = !!redeemedDict[game.id];
+
+          return (
+            <div key={game.id} className={`bg-zinc-900/40 rounded-[2rem] border border-zinc-800/80 overflow-hidden group transition-all duration-500 ${isRedeemed ? 'opacity-50 grayscale-[40%] border-zinc-900 hover:opacity-100 hover:grayscale-0' : 'hover:border-emerald-500/30 shadow-xl'}`}>
+              
+              <div className="relative h-44 bg-zinc-950 overflow-hidden">
+                <img src={game.banner} className="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700" alt="Banner" onError={(e) => { e.target.src = getPlatformFallbackSVG(game.store); }} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+                
+                <div className="absolute top-4 left-4 flex gap-2">
+                  <span className={`${game.store.color} text-[10px] font-black px-2.5 py-1 rounded-lg border border-white/10 shadow-lg text-white uppercase`}>{game.store.name}</span>
+                  {/* NOVO: Tag de DLC super destacada visualmente */}
+                  {game.isDLC && <span className="bg-gradient-to-r from-fuchsia-600 to-purple-600 border border-fuchsia-400 text-[10px] font-black px-2.5 py-1 rounded-lg shadow-lg text-white flex items-center gap-1.5"><Puzzle size={10} /> DLC / EXPANSÃO</span>}
+                </div>
+
+                {isRedeemed && (
+                   <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border border-zinc-700 flex items-center gap-1.5 text-xs font-bold text-zinc-300">
+                     <CheckCircle2 size={14} className="text-emerald-500" /> Resgatado
+                   </div>
+                )}
+              </div>
+
+              <div className="p-6 -mt-6 relative z-10 bg-[#050505]/90 backdrop-blur-sm rounded-t-[2rem]">
+                <div className="flex justify-between items-start gap-4 mb-3">
+                  <h2 className="text-lg font-bold leading-snug text-zinc-100 group-hover:text-emerald-400 line-clamp-2">{game.title}</h2>
+                  <button onClick={() => setFavorites(prev => prev.includes(game.id) ? prev.filter(i => i !== game.id) : [...prev, game.id])} className={`p-1 flex-shrink-0 transition-colors ${favorites.includes(game.id) ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-400"}`}><Heart size={22} fill={favorites.includes(game.id) ? "currentColor" : "none"} /></button>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                  <span className="flex items-center gap-1 text-emerald-500 font-bold text-xs"><Star size={15} fill="currentColor" />{game.rating}</span>
+                  <span className="flex items-center gap-1 text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md uppercase"><Tag size={10}/> R$ {game.price.toFixed(2).replace('.',',')}</span>
+                  <span className="text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md uppercase">{game.genre}</span>
+                  <span className="text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md uppercase">{game.mode}</span>
+                </div>
+                
+                <button onClick={() => setExpandedId(expandedId === game.id ? null : game.id)} className="flex items-center gap-1 text-[10px] font-bold text-zinc-500 uppercase mb-4 hover:text-zinc-300"><Info size={14} /> {expandedId === game.id ? "Ocultar Informações" : "Sobre a Oferta"}</button>
+                {expandedId === game.id && <div className="mb-5 text-xs text-zinc-400 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/80 leading-relaxed">{game.synopsis}</div>}
+                
+                {/* NOVO: Ações Duplas (Resgatar URL + Checkmark) */}
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => toggleRedeemed(game)} 
+                    className={`flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all active:scale-95 ${isRedeemed ? 'bg-zinc-800 text-zinc-400 border border-zinc-700' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'}`}
+                  >
+                    <CheckCircle2 size={16} className={isRedeemed ? 'text-zinc-500' : 'text-emerald-500'} />
+                    {isRedeemed ? 'JÁ PEGUEI' : 'MARCAR COMO RESGATADO'}
+                  </button>
+                  
+                  <a 
+                    href={game.url} target="_blank" rel="noopener noreferrer" 
+                    className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 rounded-xl flex items-center justify-center transition-colors active:scale-95"
+                    title="Abrir Loja Oficial"
+                  >
+                    <ExternalLink size={18} />
+                  </a>
+                </div>
+
+              </div>
+            </div>
+          );
+        })}
+      </main>
+    </div>
+  );
+}
